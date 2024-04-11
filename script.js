@@ -4,7 +4,7 @@ const fs = require('fs');
 const { start } = require('repl');
 const mongoose = require('mongoose');
 
-const observationTime = 2 * 365 * 24 * 60 * 60;
+const observationTime = 3 * 365 * 24 * 60 * 60;
 const observationWindow = 6 * 31 * 24 * 60 * 60;
 const improvementThreshold = 150;
 
@@ -36,24 +36,25 @@ const getEligibleUser = async (user) => {
 	const { handle } = user;
 	const now = getEpochSecond();
 	const thresholdTime = now - observationTime;
-	const cutoffTime = 69 * 24 * 60 * 60;
-	const cutoffProblems = 44;
+	const cutoffTime = 147 * 24 * 60 * 60;
+	const problemsLower = 26;
+	const problemsUpper = 92;
 
-	// filters ratingChange (contests) of the past 2 years
+	// filters ratingChange (contests) of the past 3 years
 	let ratings = await getRating(handle);
 	ratings = ratings.filter(r => r.ratingUpdateTimeSeconds >= thresholdTime);
 
 	let startRating = ratings[0].newRating;
 	let startTime = 0;
 	let endTime = 0;
-	if (startRating >= 1600){
+	if (startRating >= 2000){
 		return false;
 	}
 	for (const rating of ratings){
-		if (rating.newRating >= 1600 && startTime === 0){
+		if (rating.newRating >= 1900 && startTime === 0){
 			startTime = rating.ratingUpdateTimeSeconds;
 		}
-		if (rating.newRating >= 1900 && endTime === 0 && startTime != 0){
+		if (rating.newRating >= 2100 && endTime === 0 && startTime != 0){
 			endTime = rating.ratingUpdateTimeSeconds;
 			break;  
 		}
@@ -64,7 +65,7 @@ const getEligibleUser = async (user) => {
 	}
 
 	let allSubmissions = await getSubmissions(handle);
-	allSubmissions = allSubmissions.filter(s => s.creationTimeSeconds >= startTime && s.creationTimeSeconds <= endTime && s.verdict === 'OK');
+	allSubmissions = allSubmissions.filter(s => s.creationTimeSeconds >= startTime && s.creationTimeSeconds <= endTime && s.verdict === 'OK' && s.author.participantType === 'PRACTICE');
 	
 	// gets the unique problems solved and submissions
 	const problemIds = new Set();
@@ -78,7 +79,7 @@ const getEligibleUser = async (user) => {
 		submissions.push(submission);
 	}
 
-	if (endTime - startTime <= cutoffTime && submissions.length >= cutoffProblems){
+	if (endTime - startTime <= cutoffTime && submissions.length >= problemsLower && submissions.length <= problemsUpper){
 		return true;
 	}
 	else {
