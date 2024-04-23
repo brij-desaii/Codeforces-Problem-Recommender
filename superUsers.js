@@ -1,15 +1,5 @@
 const axios = require('axios');
-const { time } = require('console');
 const fs = require('fs');
-const { start } = require('repl');
-const mongoose = require('mongoose');
-
-const observationTime = 3 * 365 * 24 * 60 * 60;
-const observationWindow = 6 * 31 * 24 * 60 * 60;
-const improvementThreshold = 150;
-
-const contestThreshold = 20;
-const problemThreshold = 150;
 
 const getEpochSecond = () => {
 	return Math.floor(new Date().getTime() / 1000);
@@ -31,14 +21,17 @@ const getSubmissions = async (handle) => {
 	return response.data.result;
 }
 
-// returns a list of all the problems a user has solved that led to their rating increase
+// returns true if the user satisfies the super user requirements, else false
 const getEligibleUser = async (user) => {
 	const { handle } = user;
 	const now = getEpochSecond();
+	const observationTime = 4 * 365 * 24 * 60 * 60;
 	const thresholdTime = now - observationTime;
 	const cutoffTime = 147 * 24 * 60 * 60;
-	const problemsLower = 26;
-	const problemsUpper = 92;
+	const problemsLower = 62;
+	const problemsUpper = 62;
+	const ratingLower = 1900;
+	const ratingUpper = 2100;
 
 	// filters ratingChange (contests) of the past 3 years
 	let ratings = await getRating(handle);
@@ -47,14 +40,14 @@ const getEligibleUser = async (user) => {
 	let startRating = ratings[0].newRating;
 	let startTime = 0;
 	let endTime = 0;
-	if (startRating >= 2000){
+	if (startRating >= ratingLower){
 		return false;
 	}
 	for (const rating of ratings){
-		if (rating.newRating >= 1900 && startTime === 0){
+		if (rating.newRating >= ratingLower && startTime === 0){
 			startTime = rating.ratingUpdateTimeSeconds;
 		}
-		if (rating.newRating >= 2100 && endTime === 0 && startTime != 0){
+		if (rating.newRating >= ratingUpper && endTime === 0 && startTime != 0){
 			endTime = rating.ratingUpdateTimeSeconds;
 			break;  
 		}
@@ -79,8 +72,8 @@ const getEligibleUser = async (user) => {
 		submissions.push(submission);
 	}
 
-	if (endTime - startTime <= cutoffTime && submissions.length >= problemsLower && submissions.length <= problemsUpper){
-		return true;
+	if (endTime - startTime <= cutoffTime && submissions.length >= problemsLower){
+		return problemIds;
 	}
 	else {
 		return false;
@@ -99,18 +92,11 @@ const getEligibleUsersInBatch = async (users, eligibleUsers, errCount, start, en
 		try {
 			const isSuper = await getEligibleUser(user);
 			if (isSuper){
+				let problems = [...isSuper];
+				user.problems = problems;
 				eligibleUsers.push(user);
 			}
-			// for (const problem of problems) {
-			// 	const problemKey = getProblemKey(problem);
-			// 	if (!problemMap[problemKey]) {
-			// 		problemMap[problemKey] = problem;
-			// 		problemFreq[problemKey] = 0;
-			// 	}
-			// 	problemFreq[problemKey]++;
-			// }
 		} catch (err) {
-			// console.log(`Error for ${user.handle}: ${err}`);
 			if (!errCount[i]) errCount[i] = 0;
 			errCount[i]++;
 			if (errCount[i] <= 6) {
@@ -130,14 +116,10 @@ const getAllEligibleUsers= async (startFrom, doSkipped = false) => {
 	let users = [...userFile.result];
 	
 	const errCount = {};
-	// let problemMap = {};
-	// let problemFreq = {};
 	let eligibleUsers = [];
 	let skippedUsers = [];
 	if (startFrom) {
 		const checkpoint = JSON.parse(fs.readFileSync(`./checkpoints/checkpoint_${startFrom}.json`));
-		// problemMap = checkpoint.problemMap;
-		// problemFreq = checkpoint.problemFreq;
 		eligibleUsers = checkpoint.eligibleUsers;
 		skippedUsers = checkpoint.skippedUsers;
 		if (doSkipped) {
@@ -157,26 +139,20 @@ const getAllEligibleUsers= async (startFrom, doSkipped = false) => {
 	}
 	for (let i = start; i < users.length; i += checkPointSize) {
 		const toWrite = {
-			// problemMap: problemMap,
-			// problemFreq: problemFreq,
 			eligibleUsers: eligibleUsers,
 			skippedUsers: skippedUsers,
 		};
 		let checkpoint = startFrom + i;
 		fs.writeFileSync(`./checkpoints/checkpoint_${checkpoint}.json`, JSON.stringify(toWrite));
-		// console.log(`Checkpoint upto ${checkpoint} written, skipped users: ${skippedUsers.length}, problems: ${Object.keys(problemMap).length}`);
 		console.log(`Checkpoint upto ${checkpoint} written, skipped users: ${skippedUsers.length}, super users: ${eligibleUsers.length}`);
 
 		let tasks = [];
 		for (let j = 0; j < checkPointSize; j += batchSize) {
-			// tasks.push(getEligibleProblemsInBatch(users, problemMap, problemFreq, errCount, i + j, i + j + batchSize, skippedUsers));
 			tasks.push(getEligibleUsersInBatch(users, eligibleUsers, errCount, i + j, i + j + batchSize, skippedUsers));
 		}
 		await Promise.allSettled(tasks);
 	}
 	const toWrite = {
-		// problemMap: problemMap,
-		// problemFreq: problemFreq,
 		eligibleUsers: eligibleUsers,
 		skippedUsers: skippedUsers,
 	};
