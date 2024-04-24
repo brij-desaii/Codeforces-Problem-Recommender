@@ -69,11 +69,11 @@ const getEligibleUser = async (user) => {
 			continue;
 		}
 		problemIds.add(key);
-		submissions.push(submission);
+		submissions.push([key, submission.creationTimeSeconds]);
 	}
 
 	if (endTime - startTime <= cutoffTime && submissions.length >= problemsLower){
-		return problemIds;
+		return submissions;
 	}
 	else {
 		return false;
