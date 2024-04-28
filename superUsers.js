@@ -25,13 +25,12 @@ const getSubmissions = async (handle) => {
 const getEligibleUser = async (user) => {
 	const { handle } = user;
 	const now = getEpochSecond();
-	const observationTime = 4 * 365 * 24 * 60 * 60;
+	const observationTime = 2 * 365 * 24 * 60 * 60;
 	const thresholdTime = now - observationTime;
-	const cutoffTime = 147 * 24 * 60 * 60;
-	const problemsLower = 62;
-	const problemsUpper = 62;
-	const ratingLower = 1900;
-	const ratingUpper = 2100;
+	const cutoffTime = 50 * 24 * 60 * 60;
+	const problemsLower = 37;
+	const ratingLower = 1200;
+	const ratingUpper = 1400;
 
 	// filters ratingChange (contests) of the past 3 years
 	let ratings = await getRating(handle);
@@ -40,7 +39,7 @@ const getEligibleUser = async (user) => {
 	let startRating = ratings[0].newRating;
 	let startTime = 0;
 	let endTime = 0;
-	if (startRating >= ratingLower){
+	if (startRating > ratingLower){
 		return false;
 	}
 	for (const rating of ratings){
@@ -58,8 +57,28 @@ const getEligibleUser = async (user) => {
 	}
 
 	let allSubmissions = await getSubmissions(handle);
+	let preSubmissions = allSubmissions.filter(s => s.creationTimeSeconds < startTime && s.verdict === 'OK');
 	allSubmissions = allSubmissions.filter(s => s.creationTimeSeconds >= startTime && s.creationTimeSeconds <= endTime && s.verdict === 'OK' && s.author.participantType === 'PRACTICE');
-	
+	let tagFreq = {};
+	let ratingFreq = {};
+
+	for (const submission of preSubmissions) {
+		for (const tag of submission.problem.tags){
+			if (tag in tagFreq){
+				tagFreq[tag] += 1;
+			} else {
+				tagFreq[tag] = 1;
+			}
+		}
+
+		const ratingVal = submission.problem.rating;
+		if (ratingVal in ratingFreq){
+			ratingFreq[ratingVal] += 1;
+		} else {
+			ratingFreq[ratingVal] = 1;
+		}	
+	}
+
 	// gets the unique problems solved and submissions
 	const problemIds = new Set();
 	let submissions = [];
@@ -69,11 +88,11 @@ const getEligibleUser = async (user) => {
 			continue;
 		}
 		problemIds.add(key);
-		submissions.push([key, submission.creationTimeSeconds]);
+		submissions.push([key, submission.creationTimeSeconds, submission.problem.rating, submission.problem.tags]);
 	}
 
 	if (endTime - startTime <= cutoffTime && submissions.length >= problemsLower){
-		return submissions;
+		return [submissions, tagFreq, ratingFreq];
 	}
 	else {
 		return false;
@@ -92,8 +111,10 @@ const getEligibleUsersInBatch = async (users, eligibleUsers, errCount, start, en
 		try {
 			const isSuper = await getEligibleUser(user);
 			if (isSuper){
-				let problems = [...isSuper];
+				let problems = [...isSuper[0]];
 				user.problems = problems;
+				user.tagFreq = isSuper[1];
+				user.ratingFreq = isSuper[2];
 				eligibleUsers.push(user);
 			}
 		} catch (err) {
