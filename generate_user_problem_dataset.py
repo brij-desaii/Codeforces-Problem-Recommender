@@ -2,16 +2,16 @@ import csv
 import json
 
 # Load JSON data
-with open('checkpoints/checkpoint_5600.json') as f:
+with open('checkpoints/checkpoint_12600.json') as f:
     data = json.load(f)
 
 # Extract user information
 users = data['eligibleUsers']
 
 # Define CSV file path
-csv_file1 = 'data/cm_to_m/user_problem.csv'
-csv_file2 = 'data/cm_to_m/user_tags.csv'
-csv_file3 = "data/cm_to_m/user_ratings"
+csv_file1 = 'data/newbie_to_pupil/user_problem.csv'
+csv_file2 = 'data/newbie_to_pupil/user_tags.csv'
+csv_file3 = "data/newbie_to_pupil/user_ratings.csv"
 
 # Open CSV file in write mode
 with open(csv_file1, 'w', newline='') as f:
