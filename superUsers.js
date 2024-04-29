@@ -25,12 +25,12 @@ const getSubmissions = async (handle) => {
 const getEligibleUser = async (user) => {
 	const { handle } = user;
 	const now = getEpochSecond();
-	const observationTime = 3 * 365 * 24 * 60 * 60;
+	const observationTime = 12 * 365 * 24 * 60 * 60;
 	const thresholdTime = now - observationTime;
-	const cutoffTime = 118 * 24 * 60 * 60;
-	const problemsLower = 56;
-	const ratingLower = 1400;
-	const ratingUpper = 1600;
+	const cutoffTime = 75000 * 24 * 60 * 60;
+	const problemsLower = 27;
+	const ratingLower = 2600;
+	const ratingUpper = 3000;
 
 	// filters ratingChange (contests) of the past 3 years
 	let ratings = await getRating(handle);
