@@ -21,7 +21,6 @@ const getSubmissions = async (handle) => {
 	return response.data.result;
 }
 
-// returns true if the user satisfies the super user requirements, else false
 const getEligibleUser = async (user) => {
 	const { handle } = user;
 	const now = getEpochSecond();
@@ -32,7 +31,6 @@ const getEligibleUser = async (user) => {
 	const ratingLower = 2600;
 	const ratingUpper = 3000;
 
-	// filters ratingChange (contests) of the past 3 years
 	let ratings = await getRating(handle);
 	ratings = ratings.filter(r => r.ratingUpdateTimeSeconds >= thresholdTime);
 
@@ -79,7 +77,6 @@ const getEligibleUser = async (user) => {
 		}	
 	}
 
-	// gets the unique problems solved and submissions
 	const problemIds = new Set();
 	let submissions = [];
 	for (const submission of allSubmissions) {
