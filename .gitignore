@@ -2,3 +2,4 @@ node_modules/
 checkpoints/
 superusers/
 models/
+test/
